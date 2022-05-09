@@ -1,4 +1,5 @@
 import { INITIAL_STATE } from "../constants/defaults";
+import * as colors from "@webgeoda/utils/colors";
 
 import {
   mapFnNb,
@@ -19,14 +20,18 @@ const [defaultTables, dataPresetsRedux, tooltipTables] = [{}, {}, []];
 export default function reducer(state = INITIAL_STATE, action) {
   switch (action.type) {
     case "INITIAL_LOAD": {
-      const dataParams = {
+      let dataParams = {
         ...state.dataParams,
         ...action.payload.variableParams,
       };
-      const mapParams = {
+      let mapParams = {
         ...state.mapParams,
         ...action.payload.mapParams,
       };
+      if (typeof dataParams?.colorScale === "string") {
+        dataParams.colorScale = colors.colorbrewer[dataParams.colorScale]
+        mapParams.colorScale = colors.colorbrewer[dataParams.colorScale]
+      }
       const storedData = {
         ...state.storedData,
         ...action.payload.storedData,
@@ -69,10 +74,13 @@ export default function reducer(state = INITIAL_STATE, action) {
       };
     }
     case "CHANGE_VARIABLE": {
-      const dataParams = find(
+      let dataParams = find(
         dataPresets.variables,
         (o) => o.variable === action.payload
       );
+      if (typeof dataParams?.colorScale === "string") {
+        dataParams.colorScale = colors.colorbrewer[dataParams.colorScale]
+      }
 
       const currPresets = find(
         state.dataPresets.data, 
@@ -133,6 +141,7 @@ export default function reducer(state = INITIAL_STATE, action) {
       const mapParams = {
         ...state.mapParams,
         ...action.payload,
+        colorScale: action.payload.colorScale || state.dataParams.colorScale
       };
       return {
         ...state,
@@ -273,6 +282,9 @@ export default function reducer(state = INITIAL_STATE, action) {
         ...state.dataParams,
         ...action.payload.params,
       };
+      if (typeof dataParams?.colorScale === "string") {
+        dataParams.colorScale = colors.colorbrewer[dataParams.colorScale]
+      }
 
       const currentTable = {
         numerator:
@@ -355,6 +367,9 @@ export default function reducer(state = INITIAL_STATE, action) {
         ...state.dataParams,
         ...action.payload.params.params,
       };
+      if (typeof dataParams?.colorScale === "string") {
+        dataParams.colorScale = colors.colorbrewer[dataParams.colorScale]
+      }
 
       const mapParams = {
         ...state.mapParams,

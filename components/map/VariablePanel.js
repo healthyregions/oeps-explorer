@@ -1,144 +1,238 @@
 import { useDispatch, useSelector } from "react-redux";
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useRef } from "react";
 import styles from "./VariablePanel.module.css";
-import { variables } from '../../meta/variables';
 
-// import {
-//   Listbox,
-//   ListboxOption
-// } from "@reach/listbox";
-import "@reach/listbox/styles.css";
-import { Select } from "grommet";
+import TextField from "@mui/material/TextField";
+import Autocomplete from "@mui/material/Autocomplete";
 
-import {
-  Gutter
-} from "../layout/Gutter";
+import { Gutter } from "../layout/Gutter";
 import RemoteMarkdownModal from "@components/markdown/RemoteMarkdownModal";
+import { Box, Button, Grid, Modal, Typography } from "@mui/material";
+import { variables } from "meta/variables";
+const variableMeta = Object.values(variables).flat();
 
 const themeCategories = [
-  "Policy Variables",
-  "Health Variables",
-  "Demographic Variables",
-  "Economic Variables",
-  "Physical Environment Variables",
-  "COVID-19 Variables"
-]
+  "Policy",
+  "Health",
+  "Demographic",
+  "Economic",
+  "Physical Environment",
+  "COVID-19",
+];
 
-const filterVars = (list, themes, currTheme) => {
-  const keys = Object.values(themes)
-  const indices = Object.keys(themes)
-  const startIndex = +indices[keys.indexOf(currTheme)]
-  if (keys.indexOf(currTheme) === keys.length -1) {
-    return list.slice(startIndex,)
-  } else {
-    try {
-      const endIndex = +indices[keys.indexOf(currTheme)+1]
-      return list.slice(startIndex, endIndex)
-    } catch {
-      return list.slice(startIndex,)
-    }
-  }
-}
+const modalStyle = {
+  position: "fixed",
+  top: "20%",
+  left: "50%",
+  transform: "translate(-50%,-50%)",
+  width: "clamp(300px, 600px, 100%)",
+  background: "white",
+  padding: "1em",
+  fontFamily: "'Lato', Verdana, sans-serif !important",
+  // width:'clamp(300px, 600px, 100%)',
+};
+const modalInner = {
+  position: "relative",
+  width: "100%",
+  height: "100%",
+  // width:'clamp(300px, 600px, 100%)',
+};
 
 export default function VariablePanel(props) {
-  const dataParams = useSelector((state => state.dataParams));
+  const dataParams = useSelector((state) => state.dataParams);
   const currentData = useSelector((state) => state.currentData);
   const dataPresets = useSelector((state) => state.dataPresets);
-  const [activeDocs, setActiveDocs] = useState('')
-  const [activeTheme, setActiveTheme] = useState(Object.keys(variables)[1])
-  const filteredVars = useMemo(() => filterVars(dataPresets.variables, dataPresets.style.variableHeaders, activeTheme),[activeTheme])
+  const [activeThemes, setActiveThemes] = useState([]);
+  const autocompleteRef = useRef(null);
+
+  const toggleTheme = (theme) => {
+    setActiveThemes((activeThemes) => {
+      if (activeThemes.includes(theme)) {
+        return activeThemes.filter((t) => t !== theme);
+      } else {
+        return [...activeThemes, theme];
+      }
+    });
+  };
+
+  const [activeDocs, setActiveDocs] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const toggleModal = () => {
+    setModalOpen((prev) => !prev);
+  };
   const dispatch = useDispatch();
-
-  useEffect(() => {
-    const vars = filterVars(dataPresets.variables, dataPresets.style.variableHeaders, activeTheme)
-    dispatch({ type: "CHANGE_VARIABLE", payload: vars[0].variable })
-  },[activeTheme])
-
   return (
     <>
       <div
         className={
-          styles.panelContainer + " " + (props.open 
-            ? styles.open 
-            : styles.hidden)
+          styles.panelContainer +
+          " " +
+          (props.open ? styles.open : styles.hidden)
         }
       >
-        <p>Theme Select</p>
-        
-        <Select
-          options={themeCategories}
-          value={activeTheme}
-          onChange={({ option }) => setActiveTheme(option)}
-        />
-        {/* <Listbox
-          value={activeTheme}
-          onChange={(value) => setActiveTheme(value)}
-          id="themeSelect"
-        >
-          {themeCategories.map(entry => 
-            <ListboxOption value={entry} key={`theme-${entry}`}>
-              {entry}
-            </ListboxOption>)
-          }
-        </Listbox> */}
-        <Gutter em={1}/>
-        <p>Variable Select</p>
-        <Select
-          options={filteredVars.map(f => f.variable)}
-          value={dataParams.variable}
-          onChange={({ option }) => dispatch({ type: "CHANGE_VARIABLE", payload: option })}
-        />
-        {/* <Listbox
-          value={dataParams.variable}
-          onChange={(value) =>
-            dispatch({ type: "CHANGE_VARIABLE", payload: value })
-          }
-          id="variableSelect"
-        >
-          {filteredVars.map((entry, i) => 
-            <ListboxOption value={entry.variable} key={`variable-list-${i}`}>
-              {entry.variable}
-            </ListboxOption>
-          )}
-        </Listbox> */}
+        <Grid container spacing={1}>
+          <Grid item xs={6} sm={6} md={12} lg={12}>
+            <Typography variant="h5" sx={{ py: 0, my: 0, mb:1 }} fontFamily="'Lato', Verdana, sans-serif;" fontWeight="bold">
+              {dataParams.variable}
+            </Typography>
 
-        {dataPresets.data.length > 1 &&
-        <> 
-          <Gutter em={1}/>
-          <p>Geography Select</p>
-          {dataPresets.data.map(entry => 
-            <button onClick={() => dispatch({ type: "CHANGE_DATASET", payload: entry.geodata})} 
-              key={`geography-list-${entry.geodata}`} 
-              disabled={
-                !((dataParams.numerator in entry.tables)||dataParams.numerator==="properties")||currentData===entry.geodata
-              }
-              className={`${styles.pillButton} ${currentData===entry.geodata&&styles.activeButton}`}
+            <Button
+              onClick={toggleModal}
+              variant="contained"
+              sx={{
+                textTransform: "none",
+                minWidth: "2em",
+                backgroundColor: "var(--selected-color)",
+                fontFamily: "'Lato', Verdana, sans-serif",
+                letterSpacing: 0,
+              }}
             >
-              {entry.name}
-            </button>
-          )}
-        </>}
-        <Gutter em={1} />
-        {dataParams.numerator ? <button 
-          className={styles.readMoreButton}
-          onClick={() => setActiveDocs(`https://raw.githubusercontent.com/GeoDaCenter/opioid-policy-scan/master/data_final/metadata/${variables[activeTheme].find(f => f.markdownPrefix.includes(dataParams.numerator.split('_')[0])).markdown}.md`)}
-          >
-          Read more about this data 
-          <br/>
-          Dataset: <code>{dataParams.numerator.split('_')[0]}</code><br/>
-          Column: <code>{dataParams.nProperty}</code>
-        </button> : null}
-        {dataParams.denominator ? <button 
-          className={styles.readMoreButton}
-          onClick={() => setActiveDocs(`https://raw.githubusercontent.com/GeoDaCenter/opioid-policy-scan/master/data_final/metadata/${variables[activeTheme].find(f => f.markdownPrefix.includes(dataParams.numerator.split('_')[0])).markdown}.md`)}
-          >
-          Read more about this data 
-          <br/>
-          Dataset: <code>{dataParams.denominator.split('_')[0]}</code><br/>
-          Column: <code>{dataParams.dProperty}</code>
-        </button> : null}
+              <img
+                style={{ maxHeight: "1.25em", marginRight: ".5em" }}
+                alt="Search for variables"
+                src="/images/search.svg"
+              />{" "}
+              Search for variables
+            </Button>
+          </Grid>
+          <Grid item xs={6} sm={6} md={12} lg={12}>
+            {dataPresets.data.length > 1 && (
+              <>
+                <p>Available Geographies</p>
+                {dataPresets.data.map((entry) => (
+                  <button
+                    onClick={() =>
+                      dispatch({
+                        type: "CHANGE_DATASET",
+                        payload: entry.geodata,
+                      })
+                    }
+                    key={`geography-list-${entry.geodata}`}
+                    disabled={
+                      !(
+                        dataParams.numerator in entry.tables ||
+                        dataParams.numerator === "properties"
+                      ) || currentData === entry.geodata
+                    }
+                    className={`${styles.pillButton} ${
+                      currentData === entry.geodata && styles.activeButton
+                    }`}
+                  >
+                    {entry.name.split("US ")[1]}
+                  </button>
+                ))}
+              </>
+            )}
+            <br />
+            {dataParams.numerator ? (
+              <button
+                className={styles.readMoreButton}
+                onClick={() =>
+                  setActiveDocs(
+                    `https://raw.githubusercontent.com/GeoDaCenter/opioid-policy-scan/master/data_final/metadata/${
+                      variableMeta.find((f) =>
+                        f.markdownPrefix.includes(
+                          dataParams.numerator.split("_")[0]
+                        )
+                      ).markdown
+                    }.md`
+                  )
+                }
+              >
+                Read more about this data
+                <span className={styles.desktop}>
+                  Dataset: <code>{dataParams.numerator.split("_")[0]}</code> |
+                  Column: <code>{dataParams.nProperty}</code>
+                </span>
+              </button>
+            ) : null}
+            {dataParams.denominator ? (
+              <button
+                className={styles.readMoreButton}
+                onClick={() =>
+                  setActiveDocs(
+                    `https://raw.githubusercontent.com/GeoDaCenter/opioid-policy-scan/master/data_final/metadata/${
+                      variableMeta.find((f) =>
+                        f.markdownPrefix.includes(
+                          dataParams.numerator.split("_")[0]
+                        )
+                      ).markdown
+                    }.md`
+                  )
+                }
+              >
+                Read more about this data
+                <br />
+                Dataset: <code>{dataParams.denominator.split("_")[0]}</code>
+                <br />
+                Column: <code>{dataParams.dProperty}</code>
+              </button>
+            ) : null}
+          </Grid>
+        </Grid>
       </div>
-      {activeDocs.length ? <RemoteMarkdownModal url={activeDocs} reset={() => setActiveDocs(false)}/> : null}
+      {activeDocs.length ? (
+        <RemoteMarkdownModal
+          url={activeDocs}
+          reset={() => setActiveDocs(false)}
+        />
+      ) : null}
+      <Modal open={modalOpen} onClose={toggleModal}>
+        <Box sx={modalStyle}>
+          <Box sx={modalInner}>
+            <Typography variant="h5">Search for variables</Typography>
+            <Button
+              sx={{ position: "absolute", top: "0", right: "0" }}
+              onClick={toggleModal}
+            >
+              &times;
+            </Button>
+            <Gutter em={0.5} />
+
+            <Typography variant="h6">Toggle Themes</Typography>
+            {themeCategories.map((cat, i) => (
+              <Button
+                key={i}
+                variant={activeThemes.includes(cat) ? "contained" : "outlined"}
+                onClick={() => toggleTheme(cat)}
+                sx={{ margin: ".25em", textTransform: "none" }}
+              >
+                {cat}
+              </Button>
+            ))}
+            <Gutter em={0.5} />
+            <Autocomplete
+              disablePortal
+              open={true}
+              ref={autocompleteRef}
+              id="combo-box-demo"
+              options={
+                activeThemes.length
+                  ? dataPresets.variables.filter((f) =>
+                      activeThemes.includes(f.theme)
+                    )
+                  : dataPresets.variables
+              }
+              getOptionLabel={(option) => option.variable}
+              groupBy={(option) => option.theme}
+              // sx={{ width: 300 }}
+              fullWidth
+              renderInput={(params) => (
+                <TextField {...params} label="Type to search" />
+              )}
+              onChange={(_event, option) => {
+                if (option != undefined && option.variable != undefined) {
+                  dispatch({
+                    type: "CHANGE_VARIABLE",
+                    payload: option.variable,
+                  });
+                  toggleModal();
+                }
+              }}
+            />
+          </Box>
+        </Box>
+      </Modal>
     </>
   );
 }
