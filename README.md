@@ -1,3 +1,5 @@
+_This repository is now archived. See the `explorer` app in https://github.com/healthyregions/oeps._
+
 # OEPS Explorer
 *Updated January 2022*
 
